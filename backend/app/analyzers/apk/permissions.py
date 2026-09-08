@@ -1,0 +1,16 @@
+PERMISSION_INFO = {
+    "android.permission.CAMERA": ("Camera", "This app requests permission to use your camera.", "medium"),
+    "android.permission.RECORD_AUDIO": ("Microphone", "This app requests permission to use your microphone.", "medium"),
+    "android.permission.ACCESS_FINE_LOCATION": ("Precise location", "This app requests access to your precise location.", "medium"),
+    "android.permission.ACCESS_COARSE_LOCATION": ("Approximate location", "This app requests access to your approximate location.", "low"),
+    "android.permission.READ_CONTACTS": ("Contacts", "This app requests permission to read contacts saved on your phone.", "medium"),
+    "android.permission.READ_SMS": ("SMS messages", "This app requests permission to read SMS messages.", "high"),
+    "android.permission.SEND_SMS": ("Send SMS", "This app requests permission to send SMS messages.", "high"),
+    "android.permission.READ_CALL_LOG": ("Call history", "This app requests access to your call history.", "high"),
+    "android.permission.WRITE_EXTERNAL_STORAGE": ("Device storage", "This app requests permission to write to shared device storage.", "medium"),
+    "android.permission.READ_EXTERNAL_STORAGE": ("Device storage", "This app requests permission to read shared device storage.", "medium"),
+    "android.permission.INTERNET": ("Internet", "This app requests permission to communicate over the internet.", "low"),
+    "android.permission.REQUEST_INSTALL_PACKAGES": ("Install other apps", "This app requests permission to request installation of other packages.", "high"),
+    "android.permission.SYSTEM_ALERT_WINDOW": ("Draw over other apps", "This app requests permission to display content over other apps.", "high"),
+    "android.permission.RECEIVE_BOOT_COMPLETED": ("Start after reboot", "This app requests permission to receive a signal after the device starts.", "medium"),
+}
