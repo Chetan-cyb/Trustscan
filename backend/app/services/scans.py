@@ -1,3 +1,4 @@
+import logging
 import multiprocessing as mp
 from pathlib import Path
 from threading import Thread
@@ -8,6 +9,7 @@ from app.analyzers.apk import APKAnalyzer
 from app.risk_engine.engine import assess
 from app.ai.explainer import explain
 
+logger = logging.getLogger(__name__)
 ANALYSIS_TIMEOUT_SECONDS = 180
 WORKER_GRACE_SECONDS = 15
 TERMINAL_STATUSES = {"COMPLETED", "FAILED", "CANCELLED"}
@@ -125,7 +127,8 @@ def process_scan(db: Session, scan_id: str):
         scan.error_code = "ANALYSIS_TIMEOUT"
         scan.error_message = "APK analysis exceeded the 3-minute safety limit. Please try a different APK."
         db.commit()
-    except Exception:
+    except Exception as exc:
+        logger.exception("APK analysis failed for scan %s: %s", scan_id, exc)
         scan.status = "FAILED"
         scan.error_code = "ANALYSIS_FAILED"
         scan.error_message = "We couldn't analyze this APK. Please try again with a valid APK."
