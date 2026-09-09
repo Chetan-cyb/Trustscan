@@ -65,7 +65,7 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
     if not scan: raise HTTPException(404, "Scan not found")
     return {"scan_id":scan.id,"status":scan.status,"filename":scan.filename,"sha256":scan.sha256,"created_at":scan.created_at,"risk_score":scan.risk_score,"risk_level":scan.risk_level,"error_message":scan.error_message}
 
-@app.get('/api/v1/scans/{scan_id}/report')
+@app.get('/api/v1/scans/{scan_id}/report', response_model=Report)
 def get_report(scan_id: str, db: Session = Depends(get_db)):
     scan = db.get(Scan, scan_id)
     if not scan: raise HTTPException(404, "Scan not found")
