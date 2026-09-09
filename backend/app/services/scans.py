@@ -1,5 +1,6 @@
 import multiprocessing as mp
 from pathlib import Path
+from uuid import uuid4
 from sqlalchemy.orm import Session
 from app.models.scan import Scan
 from app.analyzers.apk import APKAnalyzer
@@ -10,7 +11,7 @@ ANALYSIS_TIMEOUT_SECONDS = 180
 
 
 def create_scan(db: Session, filename: str, path: str, sha256: str) -> Scan:
-    scan = Scan(id=str(__import__('uuid').uuid4()), filename=filename, stored_path=path, sha256=sha256, status="UPLOADED")
+    scan = Scan(id=str(uuid4()), filename=filename, stored_path=path, sha256=sha256, status="UPLOADED")
     db.add(scan)
     db.commit()
     db.refresh(scan)
@@ -34,12 +35,29 @@ def _analyze_with_timeout(path: str) -> dict:
         process.terminate()
         process.join(10)
         raise TimeoutError("APK analysis exceeded the time limit")
-    if queue.empty():
-        raise RuntimeError("APK analyzer exited without a result")
-    ok, value = queue.get()
+    try:
+        ok, value = queue.get(timeout=2)
+    except Exception as exc:
+        raise RuntimeError("APK analyzer exited without a result") from exc
     if not ok:
         raise RuntimeError(value or "APK analysis failed")
     return value
+
+
+def _process_child(scan_id: str):
+    from app.database.db import SessionLocal
+    db = SessionLocal()
+    try:
+        process_scan(db, scan_id)
+    finally:
+        db.close()
+
+
+def launch_scan(scan_id: str):
+    """Start scan work in a separate OS process so the API event loop stays responsive."""
+    ctx = mp.get_context("fork") if "fork" in mp.get_all_start_methods() else mp.get_context()
+    process = ctx.Process(target=_process_child, args=(scan_id,), daemon=False)
+    process.start()
 
 
 def process_scan(db: Session, scan_id: str):
