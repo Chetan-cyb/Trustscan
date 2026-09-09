@@ -3,11 +3,11 @@ from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, HTTPExc
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.database.db import Base, engine, get_db, SessionLocal
+from app.database.db import Base, engine, get_db
 from app.models import Scan
 from app.schemas.scan import ScanCreated, ScanStatus, Report
 from app.security.files import save_upload
-from app.services.scans import create_scan, process_scan
+from app.services.scans import create_scan, launch_scan
 from uuid import uuid4
 
 Base.metadata.create_all(bind=engine)
@@ -24,17 +24,12 @@ def upload_apk(background: BackgroundTasks, file: UploadFile = File(...), db: Se
     try:
         path, digest = save_upload(file, scan_id)
         scan = create_scan(db, file.filename or "upload.apk", path, digest)
-        background.add_task(_process, scan.id)
+        background.add_task(launch_scan, scan.id)
         return {"scan_id": scan.id, "status": scan.status}
     except ValueError as e:
         code = str(e)
         messages = {"UNSUPPORTED_FILE":"Only .apk files are supported in the MVP.","FILE_TOO_LARGE":"The APK exceeds the upload size limit.","INVALID_APK":"The uploaded file is not a valid APK container."}
         raise HTTPException(status_code=400, detail=messages.get(code, "Invalid upload."))
-
-def _process(scan_id: str):
-    db = SessionLocal()
-    try: process_scan(db, scan_id)
-    finally: db.close()
 
 @app.get('/api/v1/scans/{scan_id}', response_model=ScanStatus)
 def get_scan(scan_id: str, db: Session = Depends(get_db)):
