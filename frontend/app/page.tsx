@@ -4,8 +4,9 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 
 const API = process.env.NEXT_PUBLIC_API_BASE || 'https://trustscan-api-q2s4.onrender.com'
+const MAX_ANALYSIS_WAIT_MS = 4 * 60 * 1000
 
-type Scan = { scan_id: string; status: string }
+type Scan = { scan_id: string; status: string; error_message?: string | null }
 
 type ScanType = [string, string, string, string]
 
@@ -54,8 +55,12 @@ export default function Home() {
 
       setScan(data)
       let status = data.status
+      const startedAt = Date.now()
 
       while (!['COMPLETED', 'FAILED', 'CANCELLED'].includes(status)) {
+        if (Date.now() - startedAt > MAX_ANALYSIS_WAIT_MS) {
+          throw Error('The analysis is taking too long. The server may have restarted while processing this APK. Please try again.')
+        }
         await new Promise((resolve) => setTimeout(resolve, 1000))
         const statusResponse = await fetchWithTimeout(
           `${API}/api/v1/scans/${data.scan_id}`,
@@ -68,7 +73,10 @@ export default function Home() {
         setScan(statusData)
       }
 
-      if (status === 'FAILED') throw Error('We could not analyze this APK.')
+      if (status === 'FAILED') {
+        throw Error(scan?.error_message || 'We could not analyze this APK. Please try again.')
+      }
+      if (status === 'CANCELLED') throw Error('The APK analysis was cancelled.')
 
       const reportResponse = await fetchWithTimeout(
         `${API}/api/v1/scans/${data.scan_id}/report`,
