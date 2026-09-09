@@ -3,7 +3,7 @@ from fastapi import FastAPI, UploadFile, File, Depends, BackgroundTasks, HTTPExc
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.database.db import Base, engine, get_db
+from app.database.db import Base, engine, get_db, SessionLocal
 from app.models import Scan
 from app.schemas.scan import ScanCreated, ScanStatus, Report
 from app.security.files import save_upload
@@ -14,6 +14,34 @@ Base.metadata.create_all(bind=engine)
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="TrustScan API", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in settings.cors_origins.split(',')], allow_methods=["GET","POST","DELETE"], allow_headers=["*"])
+
+
+def recover_orphaned_scans():
+    """Render can restart a service while a child scan worker is running.
+    Any non-terminal scan left in the database at startup has no surviving worker,
+    so mark it failed instead of leaving the UI polling forever.
+    """
+    db = SessionLocal()
+    try:
+        scans = db.query(Scan).filter(
+            Scan.status.notin_(["COMPLETED", "FAILED", "CANCELLED"])
+        ).all()
+        for scan in scans:
+            scan.status = "FAILED"
+            scan.error_code = "ANALYSIS_INTERRUPTED"
+            scan.error_message = "The analysis server restarted before this scan finished. Please upload the APK again."
+            try:
+                Path(scan.stored_path).unlink(missing_ok=True)
+            except OSError:
+                pass
+        if scans:
+            db.commit()
+    finally:
+        db.close()
+
+
+recover_orphaned_scans()
+
 
 @app.get('/health')
 def health(): return {"status":"ok"}
@@ -37,7 +65,7 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
     if not scan: raise HTTPException(404, "Scan not found")
     return {"scan_id":scan.id,"status":scan.status,"filename":scan.filename,"sha256":scan.sha256,"created_at":scan.created_at,"risk_score":scan.risk_score,"risk_level":scan.risk_level,"error_message":scan.error_message}
 
-@app.get('/api/v1/scans/{scan_id}/report', response_model=Report)
+@app.get('/api/v1/scans/{scan_id}/report')
 def get_report(scan_id: str, db: Session = Depends(get_db)):
     scan = db.get(Scan, scan_id)
     if not scan: raise HTTPException(404, "Scan not found")
