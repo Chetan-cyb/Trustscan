@@ -6,6 +6,7 @@ services:
       DATABASE_URL: sqlite:///./trustscan.db
       UPLOAD_DIR: /app/uploads
       MAX_UPLOAD_BYTES: 52428800
+      CORS_ORIGINS: "*"
     volumes:
       - ./backend:/app
       - trustscan_uploads:/app/uploads
@@ -14,7 +15,7 @@ services:
     build: ./frontend
     ports: ["3000:3000"]
     environment:
-      NEXT_PUBLIC_API_BASE: http://localhost:8000
+      NEXT_PUBLIC_API_BASE: https://trustscan-api-q2s4.onrender.com
     depends_on: [backend]
 volumes:
   trustscan_uploads:
